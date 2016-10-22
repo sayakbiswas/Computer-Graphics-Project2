@@ -92,7 +92,10 @@ GLuint ViewMatrixID;
 GLuint ProjMatrixID;
 GLuint PickingMatrixID;
 GLuint pickingColorID;
+GLuint pickingColorArrayID;
 GLuint LightID;
+GLuint Light1ID;
+GLuint Light2ID;
 
 GLint gX = 0.0;
 GLint gZ = 0.0;
@@ -137,6 +140,9 @@ bool baseSlid = false;
 bool penRotated = false;
 bool buttonRotated = false;
 bool topRotated = false;
+bool arm1Rotated = false;
+bool arm2Rotated = false;
+bool animated = false;
 
 //GLfloat cameraSpeed = 0.05f;
 GLfloat cameraAngleTheta = 0.0f;
@@ -164,18 +170,18 @@ glm::mat4 penTransform;
 glm::mat4 buttonTransform;
 glm::mat4 projectileTransform;
 glm::mat4 topTransform;
+glm::mat4 arm1Transform;
+glm::mat4 arm2Transform;
 GLfloat matrix[16];
-float velocity = 5.0f;
-float initialAngle = glm::radians(45.0);
-float ivelX = cos(initialAngle) * velocity;
-float ivelY = sin(initialAngle) * velocity;
-float ivelZ = 1.0f;
-float velX = 0.0f;
-float velY = 0.0f;
-float velZ = 0.0f;
-float posX;
-float posY;
-float posZ;
+float velocity = 30.0f;
+float posX, posY, posZ;
+double previousTime = glfwGetTime();
+GLfloat arm1RotationAngle = 0.0f;
+GLfloat arm2RotationAngle = 0.0f;
+GLfloat topRotationAngle = 0.0f;
+double timer = 0.0f;
+double timeStep = 0.01f;
+float pickingColor[10] = { 0 / 255.0f, 1 / 255.0f, 2 / 255.0f, 3 / 255.0f,  4 / 255.0f, 5 / 255.0f, 6 / 255.0f, 7 / 255.0f, 8 / 255.0f, 9 / 255.0f };
 
 void loadObject(char* file, glm::vec4 color, Vertex * &out_Vertices, GLushort* &out_Indices, int ObjectId)
 {
@@ -276,27 +282,28 @@ void createObjects(void)
 void renderScene(void)
 {
 	//ATTN: DRAW YOUR SCENE HERE. MODIFY/ADAPT WHERE NECESSARY!
-
-
+	double currentTime = glfwGetTime();
+	double deltaTime = currentTime - previousTime;
+	previousTime = currentTime;
 	// Dark blue background
 	glClearColor(0.0f, 0.0f, 0.2f, 0.0f);
 	// Re-clear the screen for real rendering
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	if(moveCameraLeft) {
-		cameraAngleTheta -= 0.1f;
+		cameraAngleTheta -= 0.01f;
 	}
 
 	if(moveCameraRight) {
-		cameraAngleTheta += 0.1f;
+		cameraAngleTheta += 0.01f;
 	}
 
 	if(moveCameraUp) {
-		cameraAnglePhi -= 0.1f;
+		cameraAnglePhi -= 0.01f;
 	}
 
 	if(moveCameraDown) {
-		cameraAnglePhi += 0.1f;
+		cameraAnglePhi += 0.01f;
 	}
 
 	if(selectCamera && (moveCameraLeft || moveCameraRight || moveCameraDown || moveCameraUp)) {
@@ -346,10 +353,12 @@ void renderScene(void)
 	} else if(selectTop && isTopSelected) {
 		if(rotateTopLeft) {
 			topTransform = glm::rotate(topTransform, glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			topRotationAngle += 5.0f;
 			topRotated = true;
 		}
 		if(rotateTopRight) {
 			topTransform = glm::rotate(topTransform, glm::radians(5.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+			topRotationAngle -= 5.0f;
 			topRotated = true;
 		}
 	}
@@ -362,6 +371,21 @@ void renderScene(void)
 		loadObject("arm1.obj", glm::vec4(1.0, 0.0, 1.0, 1.0), Arm1_Verts, Arm1_Idcs, 4);
 		createVAOs(Arm1_Verts, Arm1_Idcs, 4);
 		isArm1Selected = false;
+	} else if(selectArm1 && isArm1Selected) {
+		if(rotateArm1Up) {
+			arm1Transform = glm::translate(arm1Transform, glm::vec3(-0.05f, 2.0f, 0.01f));
+			arm1Transform = glm::rotate(arm1Transform, glm::radians(-2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			arm1Transform = glm::translate(arm1Transform, glm::vec3(0.05f, -2.0f, -0.01f));
+			arm1RotationAngle -= 2.0f;
+			arm1Rotated = true;
+		}
+		if(rotateArm1Down) {
+			arm1Transform = glm::translate(arm1Transform, glm::vec3(-0.05f, 2.0f, 0.01f));
+			arm1Transform = glm::rotate(arm1Transform, glm::radians(2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			arm1Transform = glm::translate(arm1Transform, glm::vec3(0.05f, -2.0f, -0.01f));
+			arm1RotationAngle += 2.0f;
+			arm1Rotated = true;
+		}
 	}
 
 	if(selectArm2 && !isArm2Selected) {
@@ -372,6 +396,21 @@ void renderScene(void)
 		loadObject("arm2.obj", glm::vec4(0.5, 0.0, 0.5, 1.0), Arm2_Verts, Arm2_Idcs, 6);
 		createVAOs(Arm2_Verts, Arm2_Idcs, 6);
 		isArm2Selected = false;
+	} else if(selectArm2 && isArm2Selected) {
+		if(rotateArm2Up) {
+			arm2Transform = glm::translate(arm2Transform, glm::vec3(-0.05f, 2.85f, 2.06f));
+			arm2Transform = glm::rotate(arm2Transform, glm::radians(-2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			arm2Transform = glm::translate(arm2Transform, glm::vec3(0.05f, -2.85f, -2.06f));
+			arm2RotationAngle -= 2.0f;
+			arm2Rotated = true;
+		}
+		if(rotateArm2Down) {
+			arm2Transform = glm::translate(arm2Transform, glm::vec3(-0.05f, 2.85f, 2.06f));
+			arm2Transform = glm::rotate(arm2Transform, glm::radians(2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			arm2Transform = glm::translate(arm2Transform, glm::vec3(0.05f, -2.85f, -2.06f));
+			arm2RotationAngle += 2.0f;
+			arm2Rotated = true;
+		}
 	}
 
 	if(selectPen && !isPenSelected) {
@@ -383,31 +422,111 @@ void renderScene(void)
 		createVAOs(Pen_Verts, Pen_Idcs, 7);
 		isPenSelected = false;
 	} else if(selectPen && isPenSelected) {
+		if(rotatePenLeft) {
+			penTransform = glm::translate(penTransform, glm::vec3(0.02f, 1.04f, 2.25f));
+			penTransform = glm::rotate(penTransform, glm::radians(-0.573f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(-2.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(0.573f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02f, -1.04f, -2.25f));
+			penRotated = true;
+		}
+		if(rotatePenRight) {
+			penTransform = glm::translate(penTransform, glm::vec3(0.02f, 1.04f, 2.25f));
+			penTransform = glm::rotate(penTransform, glm::radians(-0.573f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(2.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(0.573f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02f, -1.04f, -2.25f));
+			penRotated = true;
+		}
+		if(rotatePenUp) {
+			penTransform = glm::translate(penTransform, glm::vec3(0.02f, 1.04f, 2.25f));
+			penTransform = glm::rotate(penTransform, glm::radians(50.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(-2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(-50.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02f, -1.04f, -2.25f));
+			penRotated = true;
+		}
+		if(rotatePenDown) {
+			penTransform = glm::translate(penTransform, glm::vec3(0.02f, 1.04f, 2.25f));
+			penTransform = glm::rotate(penTransform, glm::radians(50.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(2.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			penTransform = glm::rotate(penTransform, glm::radians(-50.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02f, -1.04f, -2.25f));
+			penRotated = true;
+		}
 		if(rotatePenAxisLeft) {
-			penTransform = glm::rotate(penTransform, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(0.02f, 1.04f, 2.25f));
+			penTransform = glm::rotate(penTransform, glm::radians(2.0f), glm::vec3(0.0f, 1.0f, 1.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02f, -1.04f, -2.25f));
 			penRotated = true;
 		}
 		if(rotatePenAxisRight) {
-
+			penTransform = glm::translate(penTransform, glm::vec3(-0.02818f, 1.55654f, 2.81459f));
+			penTransform = glm::rotate(penTransform, glm::radians(-2.0f), glm::vec3(0.0f, 1.0f, 1.0f));
+			penTransform = glm::translate(penTransform, glm::vec3(0.02818f, -1.55654f, -2.81459f));
+			penRotated = true;
 		}
 	}
 
 	if(animation) {
-		glGetFloatv(GL_MODELVIEW_MATRIX, matrix);
-		projectileTransform = glm::translate(projectileTransform, glm::vec3(posX * 0.001, posY * 0.001, posZ * 0.001));
-		posX += velX;
-		posY += velY;
-		posZ += velZ;
-		velX = ivelX * (GLfloat)glfwGetTime();
-		velY = ivelY * (GLfloat)glfwGetTime() * 0.05 - (0.5) * 9.8 * (GLfloat)glfwGetTime() * (GLfloat)glfwGetTime() * 0.05;
-		velZ = ivelZ * (GLfloat)glfwGetTime();
+		timer += timeStep;
+		glm::vec3 origin = glm::vec3(-0.02f, 0.76f, 2.2f);
+		glm::vec3 penPos = glm::vec3(-0.04f, 2.21f, 3.37f);
+		glm::vec3 direction = glm::normalize(origin - penPos);
+		double penAngle = (atan2(direction.y, direction.x) * 180.0f / (float)M_PI) + arm1RotationAngle + arm2RotationAngle;
+		if(penAngle > 360) {
+			penAngle -= 360;
+		}
+		penAngle = glm::radians(penAngle);
+		/*if(!animated) {
+			posX = penPos.x;
+			posY = penPos.y;
+			posZ = penPos.z;
+			animated = true;
+		}*/
+
+		float maxHeight = (velocity * velocity * sin(penAngle)) / (2 * 9.8);
+
+		//TODO: y = 9.69669
+		if(abs(posY) >= 9) {
+			cout << "setting anim false" << endl;
+			projectileTransform = glm::translate(projectileTransform, glm::vec3(penPos.x, penPos.y, penPos.z));
+			baseTransform = glm::translate(baseTransform, glm::vec3((penPos.x - posX), 0.0f, (penPos.z - posZ)));
+			baseSlid = true;
+			animation = false;
+		} else {
+			posX += direction.x * velocity * cos(penAngle) * (GLfloat)deltaTime;
+			posY += ((direction.y * velocity * sin(penAngle)) - (0.5 * 9.8 * (GLfloat)deltaTime)) * (GLfloat)deltaTime;
+			posZ += direction.z * velocity * cos(penAngle) * (GLfloat)deltaTime;
+			projectileTransform = glm::translate(projectileTransform, glm::vec3(((penPos.x - posX) * 0.03f),
+																				((penPos.y - posY) * 0.03f),
+																				((penPos.z - posZ) * 0.03f)));
+		}
+
+		cout << "Coordinate stuff :: " << penPos.y - maxHeight << " " << posX << " " << posY << " " << posZ << " " << penPos.y - posY << endl;
+		cout << "Timer ::" << timer << endl;
+		cout << "Angle stuff :: " << penAngle << " " << cos(penAngle) << " " << sin(penAngle) << " " << arm1RotationAngle << " " << arm2RotationAngle << " " << topRotationAngle << endl;
+
+		//if(posY >= 0) { //TODO: -8.94047
+			/*projectileTransform = glm::translate(projectileTransform, glm::vec3(posX * 0.01, posY * 0.01, posZ * 0.01));
+			posX = direction.x * velocity * cos(penAngle) * (GLfloat)timer + penPos.x;
+			posY = ((direction.y * velocity * sin(penAngle)) - (0.5 * 9.8 * (GLfloat)timer)) * (GLfloat)timer + penPos.y;
+			posZ = direction.z * velocity * cos(penAngle) * (GLfloat)timer + penPos.z;*/
+		/*} else {
+			projectileTransform = glm::translate(projectileTransform, glm::vec3(penPos.x, penPos.y, penPos.z));
+			animation = false;
+		}*/
 	}
 
 	glUseProgram(programID);
 	{
 		glm::vec3 lightPos = glm::vec3(4, 4, 4);
+		glm::vec3 light1Pos = glm::vec3(-10, 10, 0);
+		glm::vec3 light2Pos = glm::vec3(10, 10, 0);
 		glm::mat4x4 ModelMatrix = glm::mat4(1.0);
 		glUniform3f(LightID, lightPos.x, lightPos.y, lightPos.z);
+		glUniform3f(Light1ID, light1Pos.x, light1Pos.y, light1Pos.z);
+		glUniform3f(Light2ID, light2Pos.x, light2Pos.y, light2Pos.z);
 		glUniformMatrix4fv(ViewMatrixID, 1, GL_FALSE, &gViewMatrix[0][0]);
 		glUniformMatrix4fv(ProjMatrixID, 1, GL_FALSE, &gProjectionMatrix[0][0]);
 		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
@@ -435,17 +554,46 @@ void renderScene(void)
 		glBindVertexArray(VertexArrayId[3]);
 		glDrawElements(GL_TRIANGLES, NumIndices[3], GL_UNSIGNED_SHORT, (void*)0);
 
+		if(arm1Rotated) {
+			ModelMatrix = arm1Transform;
+			if(topRotated) {
+				ModelMatrix = topTransform * ModelMatrix;
+			}
+			if(baseSlid) {
+				ModelMatrix = baseTransform * ModelMatrix;
+			}
+		}
+		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
 		glBindVertexArray(VertexArrayId[4]);
 		glDrawElements(GL_TRIANGLES, NumIndices[4], GL_UNSIGNED_SHORT, (void*)0);
 
 		glBindVertexArray(VertexArrayId[5]);
 		glDrawElements(GL_TRIANGLES, NumIndices[5], GL_UNSIGNED_SHORT, (void*)0);
 
+		if(arm2Rotated) {
+			ModelMatrix = arm2Transform;
+			if(arm1Rotated) {
+				ModelMatrix = arm1Transform * ModelMatrix;
+			}
+			if(topRotated) {
+				ModelMatrix = topTransform * ModelMatrix;
+			}
+			if(baseSlid) {
+				ModelMatrix = baseTransform * ModelMatrix;
+			}
+		}
+		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
 		glBindVertexArray(VertexArrayId[6]);
 		glDrawElements(GL_TRIANGLES, NumIndices[6], GL_UNSIGNED_SHORT, (void*)0);
 
 		if(penRotated) {
 			ModelMatrix = penTransform;
+			if(arm2Rotated) {
+				ModelMatrix = arm2Transform * ModelMatrix;
+			}
+			if(arm1Rotated) {
+				ModelMatrix = arm1Transform * ModelMatrix;
+			}
 			if(topRotated) {
 				ModelMatrix = topTransform * ModelMatrix;
 			}
@@ -455,11 +603,16 @@ void renderScene(void)
 		}
 		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
 		glBindVertexArray(VertexArrayId[7]);
-		//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Pen_Verts), &Pen_Verts);
 		glDrawElements(GL_TRIANGLES, NumIndices[7], GL_UNSIGNED_SHORT, (void*)0);
 
 		if(penRotated) {
 			ModelMatrix = penTransform;
+			if(arm2Rotated) {
+				ModelMatrix = arm2Transform * ModelMatrix;
+			}
+			if(arm1Rotated) {
+				ModelMatrix = arm1Transform * ModelMatrix;
+			}
 			if(topRotated) {
 				ModelMatrix = topTransform * ModelMatrix;
 			}
@@ -476,11 +629,17 @@ void renderScene(void)
 			if(penRotated) {
 				ModelMatrix = penTransform * ModelMatrix;
 			}
+			if(arm2Rotated) {
+				ModelMatrix = arm2Transform * ModelMatrix;
+			}
+			if(arm1Rotated) {
+				ModelMatrix = arm1Transform * ModelMatrix;
+			}
 			if(topRotated) {
 				ModelMatrix = topTransform * ModelMatrix;
 			}
 			if(baseSlid) {
-				ModelMatrix = baseTransform * projectileTransform;
+				ModelMatrix = baseTransform * ModelMatrix;
 			}
 		}
 		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
@@ -513,6 +672,26 @@ void pickObject(void)
 		glUniformMatrix4fv(PickingMatrixID, 1, GL_FALSE, &MVP[0][0]);
 
 		// ATTN: DRAW YOUR PICKING SCENE HERE. REMEMBER TO SEND IN A DIFFERENT PICKING COLOR FOR EACH OBJECT BEFOREHAND
+		glUniform1f(pickingColorID, pickingColor[2]);
+		glBindVertexArray(VertexArrayId[2]);
+		glDrawElements(GL_TRIANGLES, NumIndices[2], GL_UNSIGNED_SHORT, (void*)0);
+
+		glUniform1f(pickingColorID, pickingColor[3]);
+		glBindVertexArray(VertexArrayId[3]);
+		glDrawElements(GL_TRIANGLES, NumIndices[3], GL_UNSIGNED_SHORT, (void*)0);
+
+		glUniform1f(pickingColorID, pickingColor[4]);
+		glBindVertexArray(VertexArrayId[4]);
+		glDrawElements(GL_TRIANGLES, NumIndices[4], GL_UNSIGNED_SHORT, (void*)0);
+
+		glUniform1f(pickingColorID, pickingColor[6]);
+		glBindVertexArray(VertexArrayId[6]);
+		glDrawElements(GL_TRIANGLES, NumIndices[6], GL_UNSIGNED_SHORT, (void*)0);
+
+		glUniform1f(pickingColorID, pickingColor[7]);
+		glBindVertexArray(VertexArrayId[7]);
+		glDrawElements(GL_TRIANGLES, NumIndices[7], GL_UNSIGNED_SHORT, (void*)0);
+
 		glBindVertexArray(0);
 
 	}
@@ -537,6 +716,7 @@ void pickObject(void)
 
 	// Convert the color back to an integer ID
 	gPickedIndex = int(data[0]);
+	//cout << "pickedIndex :: " << gPickedIndex << " " << data[0] << endl;
 
 	if (gPickedIndex == 255){ // Full white, must be the background !
 		gMessage = "background";
@@ -545,6 +725,45 @@ void pickObject(void)
 		std::ostringstream oss;
 		oss << "point " << gPickedIndex;
 		gMessage = oss.str();
+		if(gPickedIndex == 2) {
+			if(selectBase) {
+				selectBase = false;
+			} else {
+				selectBase = true;
+			}
+		}
+		if(gPickedIndex == 3) {
+			if(selectTop) {
+				selectTop = false;
+			} else {
+				selectTop = true;
+			}
+		}
+		if(gPickedIndex == 4) {
+			if(selectArm1) {
+				selectArm1 = false;
+			} else {
+				selectArm1 = true;
+			}
+		}
+		if(gPickedIndex == 6) {
+			if(selectArm2) {
+				selectArm2 = false;
+			} else {
+				selectArm2 = true;
+			}
+		}
+		if(gPickedIndex == 7) {
+			if(selectPen) {
+				selectPen = false;
+				rotatePenDown = false;
+				rotatePenUp = false;
+				rotatePenLeft = false;
+				rotatePenRight = false;
+			} else {
+				selectPen = true;
+			}
+		}
 	}
 
 	// Uncomment these lines to see the picking shader in effect
@@ -637,9 +856,12 @@ void initOpenGL(void)
 
 	PickingMatrixID = glGetUniformLocation(pickingProgramID, "MVP");
 	// Get a handle for our "pickingColorID" uniform
+	pickingColorArrayID = glGetUniformLocation(pickingProgramID, "PickingColorArray");
 	pickingColorID = glGetUniformLocation(pickingProgramID, "PickingColor");
 	// Get a handle for our "LightPosition" uniform
 	LightID = glGetUniformLocation(programID, "LightPosition_worldspace");
+	Light1ID = glGetUniformLocation(programID, "Light1Position_worldspace");
+	Light2ID = glGetUniformLocation(programID, "Light2Position_worldspace");
 
 	createObjects();
 }
@@ -819,6 +1041,12 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			if(selectBase) {
 				slideBaseBackward = true;
 			}
+			if(selectArm1) {
+				rotateArm1Up = true;
+			}
+			if(selectArm2) {
+				rotateArm2Up = true;
+			}
 			break;
 		case GLFW_KEY_DOWN:
 			if(selectCamera) {
@@ -829,6 +1057,12 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			}
 			if(selectBase) {
 				slideBaseForward = true;
+			}
+			if(selectArm1) {
+				rotateArm1Down = true;
+			}
+			if(selectArm2) {
+				rotateArm2Down = true;
 			}
 			break;
 		case GLFW_KEY_LEFT_SHIFT:
@@ -879,6 +1113,15 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			if(selectBase) {
 				slideBaseBackward = false;
 			}
+			if(selectArm1) {
+				rotateArm1Up = false;
+			}
+			if(selectArm2) {
+				rotateArm2Up = false;
+			}
+			if(selectPen) {
+				rotatePenUp = false;
+			}
 			break;
 		case GLFW_KEY_DOWN:
 			if(selectCamera) {
@@ -886,6 +1129,15 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 			}
 			if(selectBase) {
 				slideBaseForward = false;
+			}
+			if(selectArm1) {
+				rotateArm1Down = false;
+			}
+			if(selectArm2) {
+				rotateArm2Down = false;
+			}
+			if(selectPen) {
+				rotatePenDown = false;
 			}
 			break;
 		case GLFW_KEY_LEFT_SHIFT:
