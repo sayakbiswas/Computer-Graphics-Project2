@@ -605,22 +605,22 @@ void renderScene(void)
 				/*baseTransform = glm::translate(baseTransform, glm::vec3(0.04f + ModelMatrixCopy[3][0],
 																		0.0f,
 																		3.37f + ModelMatrixCopy[3][2]));*/
-				glm::vec4 position = ModelMatrixCopy * glm::vec4(-(0.04f + ModelMatrixCopy[3][0]), 0.0f, 3.37f + ModelMatrixCopy[3][2], 1.0f);
+				glm::vec4 position = ModelMatrixCopy * glm::vec4(-(ModelMatrixCopy[3][0]), 0.0f, ModelMatrixCopy[3][2], 1.0f);
 				baseTransform = glm::translate(baseTransform, glm::vec3(position.x, 0.0f, position.z));
 			}
 			baseSlid = true;
 			animation = false;
 		} else {
-			posX += direction.x * velocity * cos(penAngle) * (GLfloat)deltaTime;
+			/*posX += direction.x * velocity * cos(penAngle) * (GLfloat)deltaTime;
 			posY += ((direction.y * velocity * sin(penAngle)) - (0.5 * 9.8 * (GLfloat)deltaTime)) * (GLfloat)deltaTime;
 			posZ += direction.z * velocity * cos(penAngle) * (GLfloat)deltaTime;
 			projectileTransform = glm::translate(projectileTransform, glm::vec3(((penPos_v3.x - posX) * 0.03f),
 																				((penPos_v3.y - posY) * 0.03f),
-																				((penPos_v3.z - posZ) * 0.03f)));
-			/*projectileTransform = glm::translate(projectileTransform, glm::vec3(posX, posY, posZ));
-			posX = direction.x * 0.6 * (GLfloat)timer;
-			posY = (0.6 - (0.5 * 9.8 * (GLfloat)timer)) * (GLfloat)timer;
-			posZ = 0.6 * (GLfloat)timer;*/
+																				((penPos_v3.z - posZ) * 0.03f)));*/
+			projectileTransform = glm::translate(projectileTransform, glm::vec3(posX, posY, posZ));
+			posX = direction.x * 0.5 * (GLfloat)timer;
+			posY = (0.5 - (0.5 * 9.8 * (GLfloat)timer)) * (GLfloat)timer;
+			posZ = 0.5 * (GLfloat)timer;
 		}
 
 		cout << "Coordinate stuff :: " << posX << " " << posY << " " << posZ << " " << penPos.y - posY << endl;
@@ -631,8 +631,8 @@ void renderScene(void)
 	glUseProgram(programID);
 	{
 		glm::vec3 lightPos = glm::vec3(4, 4, 4);
-		glm::vec3 light1Pos = glm::vec3(5, 10, 10);
-		glm::vec3 light2Pos = glm::vec3(10, 10, 5);
+		glm::vec3 light1Pos = glm::vec3(5, 10, 15);
+		glm::vec3 light2Pos = glm::vec3(15, 10, 5);
 		glm::mat4x4 ModelMatrix = glm::mat4(1.0);
 		glUniform3f(LightID, lightPos.x, lightPos.y, lightPos.z);
 		if(toggleLight1) {
