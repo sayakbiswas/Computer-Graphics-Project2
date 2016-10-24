@@ -750,7 +750,6 @@ void renderScene(void)
 			}
 			if(arm1Rotated) {
 				ModelMatrix = arm1Transform * ModelMatrix;
-				projectileTransform = arm1Transform * projectileTransform;
 			}
 			if(topRotated) {
 				ModelMatrix = topTransform * ModelMatrix;
